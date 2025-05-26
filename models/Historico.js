@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const historicoSchema = new mongoose.Schema({
   cliente: { type: mongoose.Schema.Types.ObjectId, ref: 'Cliente', required: true },
   pet: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
@@ -10,3 +12,5 @@ const historicoSchema = new mongoose.Schema({
   valorTotal: { type: Number, required: true },
   observacoes: { type: Object }
 }, { timestamps: true });
+
+module.exports = mongoose.model('Historico', historicoSchema);

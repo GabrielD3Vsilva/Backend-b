@@ -8,7 +8,7 @@ router.get('/', async (req, res, next) => {
         const historico = await Historico.find()
             .populate('cliente', 'nome telefone')
             .populate('pet', 'nome raca')
-            .populate('servicosRealizados', 'nome preco')
+            .populate('servicosRealizados.servico', 'nome preco')
             .sort({ dataCheckout: -1 });
 
         res.json(historico);

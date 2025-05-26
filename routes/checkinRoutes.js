@@ -41,48 +41,60 @@ router.get('/', async (req, res, next) => {
 
 // Rota para checkout
 router.put('/:id/checkout', async (req, res, next) => {
-    try {
-        const { servicos } = req.body;
+  try {
+    const { servicos } = req.body; // Agora servicos é um array de objetos com { servicoId, executor }
 
-        const checkIn = await CheckIn.findById(req.params.id)
-            .populate('clienteId')
-            .populate('petId');
+    const checkIn = await CheckIn.findById(req.params.id)
+      .populate('clienteId')
+      .populate('petId');
 
-        if (!checkIn) {
-            const error = new Error('Check-in não encontrado');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        const servicosRealizados = await Servico.find({ _id: { $in: servicos } });
-        const valorTotal = servicosRealizados.reduce((total, servico) => total + servico.preco, 0);
-
-        const historicoAtendimento = new Historico({
-            cliente: checkIn.clienteId._id, 
-            pet: checkIn.petId._id,       
-            dataAtendimento: checkIn.dataCheckIn,
-            dataCheckout: new Date(),
-            servicosRealizados: servicosRealizados.map(s => s._id), 
-            valorTotal: valorTotal,
-            observacoes: checkIn.infoVisual
-        });
-        await historicoAtendimento.save();
-
-        await CheckIn.findByIdAndDelete(req.params.id);
-
-        
-        const historicoPopulad = await Historico.findById(historicoAtendimento._id)
-            .populate('cliente', 'nome telefone')
-            .populate('pet', 'nome raca')
-            .populate('servicosRealizados', 'nome preco');
-
-        res.json({
-            mensagem: 'Checkout realizado com sucesso',
-            historico: historicoPopulad
-        });
-    } catch (err) {
-        next(err);
+    if (!checkIn) {
+      const error = new Error('Check-in não encontrado');
+      error.statusCode = 404;
+      throw error;
     }
+
+    // Busca os serviços e calcula o total
+    const servicosRealizados = await Servico.find({ 
+      _id: { $in: servicos.map(s => s.servicoId) } 
+    });
+    
+    const valorTotal = servicosRealizados.reduce((total, servico) => total + servico.preco, 0);
+
+    // Mapeia os serviços com seus executores
+    const servicosComExecutores = servicosRealizados.map(servico => {
+      const servicoInfo = servicos.find(s => s.servicoId.toString() === servico._id.toString());
+      return {
+        servico: servico._id,
+        executor: servicoInfo.executor
+      };
+    });
+
+    const historicoAtendimento = new Historico({
+      cliente: checkIn.clienteId._id,
+      pet: checkIn.petId._id,
+      dataAtendimento: checkIn.dataCheckIn,
+      dataCheckout: new Date(),
+      servicosRealizados: servicosComExecutores,
+      valorTotal: valorTotal,
+      observacoes: checkIn.infoVisual
+    });
+
+    await historicoAtendimento.save();
+    await CheckIn.findByIdAndDelete(req.params.id);
+
+    const historicoPopulado = await Historico.findById(historicoAtendimento._id)
+      .populate('cliente', 'nome telefone')
+      .populate('pet', 'nome raca')
+      .populate('servicosRealizados.servico', 'nome preco');
+
+    res.json({
+      mensagem: 'Checkout realizado com sucesso',
+      historico: historicoPopulado
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
