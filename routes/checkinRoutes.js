@@ -3,86 +3,93 @@ const router = express.Router();
 const CheckIn = require('../models/CheckIn');
 const Historico = require('../models/Historico');
 const Servico = require('../models/Servico');
-const upload = require('../utils/multerConfig'); 
 
-router.post('/', upload.array('fotos', 6), async (req, res, next) => {
-    try {
-        const { clienteId, petId, dataCheckIn, infoVisual } = req.body;
-        const fotosPaths = req.files?.map(file => file.path) || [];
+// POST - Criar check-in (com imagens em Base64)
+router.post('/', async (req, res, next) => {
+  try {
+    const { clienteId, petId, dataCheckIn, infoVisual, fotos } = req.body;
 
-        const novoCheckIn = new CheckIn({
-            clienteId,
-            petId,
-            dataCheckIn,
-            infoVisual: JSON.parse(infoVisual),
-            fotos: fotosPaths
-        });
-
-        await novoCheckIn.save();
-        res.status(201).json(novoCheckIn);
-    } catch (err) {
-        next(err);
+    // Validação básica
+    if (!clienteId || !petId || !dataCheckIn) {
+      return res.status(400).json({ error: 'Dados incompletos' });
     }
+
+    // Garante que 'fotos' seja um array de strings Base64
+    const fotosBase64 = Array.isArray(fotos) ? fotos : [];
+
+    const novoCheckIn = new CheckIn({
+      clienteId,
+      petId,
+      dataCheckIn,
+      infoVisual: typeof infoVisual === 'string' ? JSON.parse(infoVisual) : infoVisual,
+      fotos: fotosBase64
+    });
+
+    await novoCheckIn.save();
+    res.status(201).json(novoCheckIn);
+
+  } catch (err) {
+    next(err);
+  }
 });
 
-
+// GET - Listar todos os check-ins
 router.get('/', async (req, res, next) => {
-    try {
-        const checkins = await CheckIn.find()
-            .sort({ dataCheckIn: -1 })
-            .populate('clienteId', 'nome telefone')
-            .populate('petId', 'nome raca')
-            .populate('servicos', 'nome preco'); 
-        res.json(checkins);
-    } catch (err) {
-        next(err);
-    }
+  try {
+    const checkins = await CheckIn.find()
+      .sort({ dataCheckIn: -1 })
+      .populate('clienteId', 'nome telefone')
+      .populate('petId', 'nome raca')
+      .populate('servicos', 'nome preco');
+    res.json(checkins);
+  } catch (err) {
+    next(err);
+  }
 });
 
-// Rota para checkout
+// PUT - Finalizar check-out
 router.put('/:id/checkout', async (req, res, next) => {
   try {
-    const { servicos } = req.body; // Agora servicos é um array de objetos com { servicoId, executor }
+    const { servicos } = req.body;
 
     const checkIn = await CheckIn.findById(req.params.id)
       .populate('clienteId')
       .populate('petId');
 
     if (!checkIn) {
-      const error = new Error('Check-in não encontrado');
-      error.statusCode = 404;
-      throw error;
+      return res.status(404).json({ error: 'Check-in não encontrado' });
     }
 
-    // Busca os serviços e calcula o total
-    const servicosRealizados = await Servico.find({ 
-      _id: { $in: servicos.map(s => s.servicoId) } 
+    // Calcula valor total e mapeia serviços
+    const servicosRealizados = await Servico.find({
+      _id: { $in: servicos.map(s => s.servicoId) }
     });
-    
+
     const valorTotal = servicosRealizados.reduce((total, servico) => total + servico.preco, 0);
 
-    // Mapeia os serviços com seus executores
     const servicosComExecutores = servicosRealizados.map(servico => {
       const servicoInfo = servicos.find(s => s.servicoId.toString() === servico._id.toString());
       return {
         servico: servico._id,
-        executor: servicoInfo.executor
+        executor: servicoInfo?.executor || 'Não especificado'
       };
     });
 
+    // Cria histórico
     const historicoAtendimento = new Historico({
       cliente: checkIn.clienteId._id,
       pet: checkIn.petId._id,
       dataAtendimento: checkIn.dataCheckIn,
       dataCheckout: new Date(),
       servicosRealizados: servicosComExecutores,
-      valorTotal: valorTotal,
+      valorTotal,
       observacoes: checkIn.infoVisual
     });
 
     await historicoAtendimento.save();
     await CheckIn.findByIdAndDelete(req.params.id);
 
+    // Retorna histórico populado
     const historicoPopulado = await Historico.findById(historicoAtendimento._id)
       .populate('cliente', 'nome telefone')
       .populate('pet', 'nome raca')
@@ -92,6 +99,7 @@ router.put('/:id/checkout', async (req, res, next) => {
       mensagem: 'Checkout realizado com sucesso',
       historico: historicoPopulado
     });
+
   } catch (err) {
     next(err);
   }

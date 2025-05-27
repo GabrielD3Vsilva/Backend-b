@@ -1,22 +1,12 @@
 const mongoose = require('mongoose');
 
-const checkInSchema = new mongoose.Schema({
-    clienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cliente', required: true },
-    petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
-    dataCheckIn: { type: Date, required: true },
-    infoVisual: {
-        corpo: String,
-        patas: String,
-        cabeça: String,
-        cauda: String,
-        olhos: String,
-        boca: String
-    },
-    fotos: [String],
-    servicos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Servico' }], // Adicionei isso pois estava no seu checkin original, embora não seja usado no checkout diretamente do checkin.
-    finalizado: { type: Boolean, default: false },
-    dataCheckOut: Date,
-    valorTotal: Number
+const CheckInSchema = new mongoose.Schema({
+  clienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cliente', required: true },
+  petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
+  dataCheckIn: { type: Date, default: Date.now },
+  infoVisual: { type: Object }, // Observações gerais
+  fotos: { type: [String] }, // Array de strings Base64
+  servicos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Servico' }] // Serviços associados
 });
 
-module.exports = mongoose.model('CheckIn', checkInSchema);
+module.exports = mongoose.model('CheckIn', CheckInSchema);
