@@ -117,7 +117,7 @@ router.get('/:id/fotos/:fotoIndex', async (req, res, next) => {
     }
 
     const fotoIndex = parseInt(req.params.fotoIndex);
-    if (isNaN(fotoIndex) {
+    if (isNaN(fotoIndex) ){
       return res.status(400).json({ error: 'Índice de foto inválido' });
     }
 
