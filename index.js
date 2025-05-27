@@ -4,7 +4,6 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 
-
 const connectDB = require('./config/db');
 const errorHandler = require('./middlewares/errorHandler'); 
 
@@ -14,7 +13,6 @@ require('./models/Cliente');
 require('./models/Historico');
 require('./models/Pet');
 require('./models/Servico');
-
 
 const clienteRoutes = require('./routes/clienteRoutes');
 const petRoutes = require('./routes/petRoutes');
@@ -28,20 +26,19 @@ const app = express();
 connectDB();
 
 app.use(cors());
-app.use(express.json()); 
 
+// Aumentando o limite de tamanho do payload para 50MB
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-
 app.use('/api/clientes', clienteRoutes);
-
 app.use('/api/pets', petRoutes);
 app.use('/api/servicos', servicoRoutes);
 app.use('/api/agendamentos', agendamentoRoutes);
 app.use('/api/checkins', checkinRoutes);
 app.use('/api/historico', historicoRoutes);
-
 
 app.use(errorHandler);
 
