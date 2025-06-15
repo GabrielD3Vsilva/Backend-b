@@ -1,63 +1,86 @@
 const express = require('express');
 const router = express.Router();
-const Servico = require('../models/Servico'); // Importa o modelo Servico
+const Servico = require('../models/Servico'); 
+const { authenticateToken, authorizeRoles } = require('../middlewares/auth');
 
-// Rota para listar todos os serviços
-router.get('/', async (req, res, next) => {
+router.get('/', authenticateToken, authorizeRoles('admin', 'gerent', 'executor', 'client'), async (req, res, next) => {
     try {
         const servicos = await Servico.find();
         res.json(servicos);
     } catch (err) {
-        next(err);
+        
+        console.error('Erro ao listar serviços:', err); 
+        res.status(500).json({ message: 'Erro interno do servidor ao listar serviços.' });
     }
 });
 
-// Rota para criar um novo serviço
-router.post('/', async (req, res, next) => {
+
+router.post('/', authenticateToken, authorizeRoles('admin', 'gerent', 'executor', 'client'), async (req, res, next) => {
     try {
         const { nome, preco, descricao, categoria } = req.body;
         const novoServico = new Servico({ nome, preco, descricao, categoria });
         await novoServico.save();
         res.status(201).json(novoServico);
     } catch (err) {
-        next(err);
+        console.error('Erro ao criar serviço:', err); 
+        if (err.name === 'ValidationError') { 
+            return res.status(400).json({ message: err.message });
+        }
+        res.status(500).json({ message: 'Erro interno do servidor ao criar serviço.' });
     }
 });
 
-// Rota para atualizar um serviço existente
-router.put('/:id', async (req, res, next) => {
+
+router.put('/:id', authenticateToken, authorizeRoles('admin', 'gerent', 'executor', 'client'), async (req, res, next) => {
+    const { id } = req.params; 
+    const { nome, preco, descricao, categoria } = req.body; 
+
+    console.log(`Recebida requisição PUT para serviço ID: ${id}`); 
+    console.log('Corpo da requisição (dados de atualização):', req.body); 
+
     try {
-        const { id } = req.params;
-        const { nome, descricao, preco } = req.body;
-        
         const servicoAtualizado = await Servico.findByIdAndUpdate(
             id,
-            { nome, descricao, preco },
-            { new: true } // Retorna o documento atualizado
+            { nome, preco, descricao, categoria },
+            { new: true, runValidators: true } 
         );
-        
+
         if (!servicoAtualizado) {
-            return res.status(404).json({ message: 'Serviço não encontrado' });
+            console.warn(`Serviço com ID ${id} não encontrado para atualização.`);
+            return res.status(404).json({ message: 'Serviço não encontrado.' });
         }
-        
         res.json(servicoAtualizado);
     } catch (err) {
+        console.error(`Erro ao atualizar serviço ID ${id}:`, err); 
+        if (err.name === 'CastError') {
+            return res.status(400).json({ message: 'ID de serviço inválido.' });
+        }
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ message: err.message });
+        }
         next(err);
     }
 });
 
-// Rota para deletar um serviço
-router.delete('/:id', async (req, res, next) => {
+
+router.delete('/:id', authenticateToken, authorizeRoles('admin', 'gerent', 'executor', 'client'), async (req, res, next) => {
+    const { id } = req.params; 
+
+    console.log(`Recebida requisição DELETE para serviço ID: ${id}`); 
+
     try {
-        const { id } = req.params;
         const servicoDeletado = await Servico.findByIdAndDelete(id);
-        
+
         if (!servicoDeletado) {
-            return res.status(404).json({ message: 'Serviço não encontrado' });
+            console.warn(`Serviço com ID ${id} não encontrado para exclusão.`);
+            return res.status(404).json({ message: 'Serviço não encontrado.' });
         }
-        
-        res.json({ message: 'Serviço deletado com sucesso' });
+        res.status(200).json({ message: 'Serviço deletado com sucesso!' });
     } catch (err) {
+        console.error(`Erro ao deletar serviço ID ${id}:`, err); 
+        if (err.name === 'CastError') { 
+            return res.status(400).json({ message: 'ID de serviço inválido.' });
+        }
         next(err);
     }
 });

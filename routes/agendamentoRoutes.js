@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Agendamento = require('../models/Agendamento'); 
 
-
 router.get('/', async (req, res, next) => {
     try {
         const agendamentos = await Agendamento.find();
@@ -12,18 +11,16 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-
 router.post('/', async (req, res, next) => {
     try {
-        const { clienteId, petId, dataHora, servicos } = req.body;
-        const novoAgendamento = new Agendamento({ clienteId, petId, dataHora, servicos });
+        const { clienteId, petId, dataHora, servicos = [], petshop = null } = req.body;
+        const novoAgendamento = new Agendamento({ clienteId, petId, dataHora, servicos, petshop });
         await novoAgendamento.save();
         res.status(201).json(novoAgendamento);
     } catch (err) {
         next(err);
     }
 });
-
 
 router.put('/:id', async (req, res, next) => {
     try {
@@ -45,7 +42,6 @@ router.put('/:id', async (req, res, next) => {
         next(err);
     }
 });
-
 
 router.delete('/:id', async (req, res, next) => {
     try {

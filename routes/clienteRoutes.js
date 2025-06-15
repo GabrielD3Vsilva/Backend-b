@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Cliente = require('../models/Cliente'); 
 
-
 router.get('/', async (req, res, next) => {
     try {
         const clientes = await Cliente.find();
@@ -12,13 +11,12 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-
 router.post('/', async (req, res, next) => {
     try {
-        const { nome, email, telefone, telefoneSecundario } = req.body;
+        const { nome, email, telefone, telefoneSecundario = null } = req.body;
         const novoCliente = new Cliente({ nome, email, telefone, telefoneSecundario });
-        await novoCliente.save();
-        res.status(201).json(novoCliente);
+        const clienteSalvo = await novoCliente.save();
+        res.status(201).json(clienteSalvo);
     } catch (err) {
         next(err); 
     }
